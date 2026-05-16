@@ -1,7 +1,7 @@
 ---
 name: dev-workflow
-description: 当用户说"我想做""怎么设计""帮我规划""讨论架构""加新功能""重构"时调用 — 五阶段渐进式开发流程
-version: 2.0.0
+description: 当用户提出代码修改、功能开发、bug修复、架构设计、需求讨论、项目规划或任何软件开发相关请求时调用 — 智能路由变更到对应规模流程
+version: 3.0.0
 ---
 
 # Dev Workflow
@@ -9,11 +9,22 @@ version: 2.0.0
 > 核心理念: 用户聊天。AI 感知阶段、创建文档、追踪关联、发现冲突。
 > 详细规则 → `REFERENCE.md`。此文件保持 < 120 行，超过即拆分。
 
-## 激活
+## 路由决策
 
-检测以下信号时自动加载：描述新项目、讨论架构、管理需求、既有项目改造。显式触发：`/dev-workflow`。
+每次加载后，根据变更信号判断规模并选择路径：
 
-## 阶段感知与流转
+| 规模 | 判断 | 路径 |
+|------|------|------|
+| **微小** | ≤1 文件、无设计选择、意图明确 | 直接执行，可选记入 CHANGES.md |
+| **小型** | ≤3 文件、无架构决策、选择清晰 | 快速追问(≤3问) → SPEC → 执行 |
+| **中型** | 多文件/模块、有设计取舍 | BRIEF → ADR → SPEC → PHASE |
+| **大型** | 跨系统、架构影响、破坏性变更 | 完整仪式 + 收敛扫描 + 里程碑 |
+
+确定路由后告知用户，用户可要求升降级。纯信息询问不进入任何路径。→ `REFERENCE.md §28`
+
+显式触发：`/dev-workflow`。
+
+## 阶段感知与流转（中大型适用）
 
 | 信号 | 阶段 | 动作 |
 |------|------|------|
@@ -25,12 +36,27 @@ version: 2.0.0
 | 新想法 vs 旧决策冲突 | **收敛** | 调 conflict-resolver，标记影响范围 |
 
 **优先级**: 冲突 > 收敛 > 澄清 > 施工 > 头脑风暴。用户说"先做着"→ 施工优先。
-
 **多想法**: 独立方向各建 BRIEF；同方向子项放一个 BRIEF。→ `REFERENCE.md §1.3`
+
+## 微型/小型路径
+
+**微小**: 确认范围 → 直接执行 → 有 `docs/` 时追加 `docs/CHANGES.md`。不做 BRIEF/ADR/SPEC/PHASE，不触发扫描。
+**小型**: 快速追问(≤3问) → 简化 SPEC(跳过模块分析) → 施工 + 标记完成。不经过 ADR，不触发收敛扫描。
+→ `REFERENCE.md §29-30`
+
+## PR 自动化
+
+| 步骤 | 触发 | 动作 |
+|------|------|------|
+| 创建 | PHASE 完成 | `gh pr create` + 关联 SPEC |
+| 合并 | PR 已合并 | 执行 `post-merge.sh`（若存在） |
+| 发布 | 所有 SPEC 完成 | 更新 MILESTONE + `git tag` |
+
+钩子 `.claude/workflow-hooks/post-merge.sh` 由用户预写，AI 仅执行。无钩子时仅更新状态 + git tag。→ `REFERENCE.md §31`
 
 ## 核心规则
 
-1. **渐进落笔**: 想法 → BRIEF（模糊）→ ADR（精确）→ SPEC（可执行）
+1. **渐进落笔**: 微小→直接执行; 小型→SPEC(可执行); 中型→BRIEF→ADR→SPEC; 大型→完整仪式+里程碑
 2. **冲突即对话**: 静默扫描 → 分类（轻微/根本）→ 列出影响范围 → 问用户。施工中遇冲突 → PAUSE PHASE。→ `REFERENCE.md §4`
 3. **收敛自动**: 每 3 ADR / 5 SPEC → converge-scanner 扫描。→ `REFERENCE.md §5`
 4. **会话恢复**: 新会话读 DESIGN-BOARD → 活跃 PHASE → 暂停 PHASE → 未读 REVIEW。→ `REFERENCE.md §6`
@@ -47,6 +73,7 @@ version: 2.0.0
 docs/
 ├── DESIGN-BOARD.md          # 持续更新
 ├── CONSTITUTION.md           # 几乎不变（含 NFR）
+├── CHANGES.md                # 微小变更日志（AI 自动维护）
 ├── ARCHITECTURE.md           # 偶尔变
 ├── briefs/   BRIEF-NNN-slug.md
 ├── adr/      ADR-NNN-slug.md
@@ -78,4 +105,4 @@ docs/
 
 ## 参考
 
-详细规则按需加载：`REFERENCE.md` — 包含阶段细节、冲突管理、收敛扫描、既有项目改造、质量门禁、拒绝处理、范围管理、Git 集成、模板使用、错误恢复、PHASE 状态机、并行施工、ADR 依赖链、NFR、里程碑、使用示例
+详细规则按需加载：`REFERENCE.md` — 包含变更规模判断、微型/小型路径、阶段细节、冲突管理、收敛扫描、既有项目改造、质量门禁、拒绝处理、范围管理、Git 集成、模板使用、错误恢复、PHASE 状态机、并行施工、ADR 依赖链、NFR、里程碑、PR 自动化、使用示例
